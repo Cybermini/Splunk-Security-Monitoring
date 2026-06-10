@@ -14,7 +14,7 @@ A structured, hands-on series covering Splunk from query language fundamentals t
 | # | Project | Focus |
 |---|---------|-------|
 | 01 | [SPL Query Language — Windows Event Log Analysis](./01-SPL-Query-Language/) | Search syntax, filters, transforming commands, anomaly detection |
-| 02 | *(Coming soon)* SOC Dashboards & Alerting | Building real-time SOC dashboards and automated alerts |
+| 02 | [SOC Lab Setup — Installation, Log Ingestion, Dashboards & Alerting](./02-SOC-Lab-Setup/) | Splunk Enterprise + Universal Forwarder setup, custom indexes, reports, dashboards, real-time alerts |
 | 03 | *(Coming soon)* Threat Detection with Splunk ES | Correlation searches, notable events, risk-based alerting |
 
 ---
