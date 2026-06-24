@@ -72,4 +72,4 @@ See [logs-observed.md](./logs-observed.md) for raw log evidence from the lab.
 
 ## Screenshots
 
-See [screenshots/](./screenshots/) for lab evidence.
+See [screenshots/](./) for lab evidence.

