@@ -5,7 +5,7 @@
 
 ---
 
-A structured, hands-on series covering Splunk from query language fundamentals through real-world SOC detection scenarios. Each project builds on the previous — starting with SPL syntax and progressing to dashboards, alerts, data correlation, and active threat detection.
+A structured, hands-on series covering Splunk from query language fundamentals through real-world detection engineering. Each project builds on the previous — from SPL syntax and dashboards to authoring production-grade Sigma detection rules mapped to MITRE ATT&CK, converted to Splunk SPL, and tuned against false positives.
 
 ---
 
@@ -15,7 +15,7 @@ A structured, hands-on series covering Splunk from query language fundamentals t
 |---|---------|-------|
 | 01 | [SPL Query Language — Windows Event Log Analysis](./01-SPL-Query-Language/) | Search syntax, filters, transforming commands, anomaly detection |
 | 02 | [SOC Lab Setup — Installation, Log Ingestion, Dashboards & Alerting](./02-SOC-Lab-Setup/) | Splunk Enterprise + Universal Forwarder setup, custom indexes, reports, dashboards, real-time alerts |
-| 03 | *(Coming soon)* Threat Detection with Splunk ES | Correlation searches, notable events, risk-based alerting |
+| 03 | [Detection Engineering — MITRE ATT&CK Sigma Rules to Splunk](./03-Detection-Engineering/) | Adversary simulation, log analysis, Sigma rule authoring, SPL conversion, detection tuning |
 
 ---
 

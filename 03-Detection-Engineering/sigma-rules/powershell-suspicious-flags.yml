@@ -1,0 +1,51 @@
+title: Suspicious PowerShell Execution Flags
+id: a7f3e2b1-4c9d-4e8a-b6f2-1d3c5e7a9b0f
+status: test
+description: >
+  Detects PowerShell execution with flags commonly used by attackers to bypass
+  defenses, obfuscate commands, or run payloads silently. Covers encoded commands,
+  execution policy bypass, hidden windows, and non-interactive/no-profile execution.
+references:
+  - https://attack.mitre.org/techniques/T1059/001/
+  - https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_powershell_exe
+author: Yamini Savalia
+date: 2026-06-24
+tags:
+  - attack.execution
+  - attack.t1059.001
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection:
+    Image|endswith:
+      - '\powershell.exe'
+      - '\pwsh.exe'
+    CommandLine|contains:
+      - '-EncodedCommand'
+      - '-enc '
+      - '-ExecutionPolicy Bypass'
+      - '-ep bypass'
+      - '-WindowStyle Hidden'
+      - '-w hidden'
+      - '-NonInteractive'
+      - '-noni '
+      - '-NoProfile'
+      - '-nop '
+  filter_legitimate_admin:
+    ParentImage|contains:
+      - 'C:\Program Files\Microsoft\Exchange Server'
+      - 'C:\Program Files\SolarWinds'
+  condition: selection and not filter_legitimate_admin
+falsepositives:
+  - Legitimate administrative scripts using execution policy bypass
+  - Software installers launching PowerShell with bypass flags
+  - SCCM / Intune management agents
+  - Antivirus/EDR products running PowerShell health checks
+level: medium
+fields:
+  - CommandLine
+  - ParentImage
+  - ParentCommandLine
+  - User
+  - Image

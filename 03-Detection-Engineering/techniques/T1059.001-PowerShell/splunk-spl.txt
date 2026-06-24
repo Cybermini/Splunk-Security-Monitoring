@@ -1,0 +1,77 @@
+# Splunk SPL — T1059.001 Suspicious PowerShell Execution Flags
+# Converted from Sigma rule using sigma-cli
+# Source: sigma-rule.yml
+# Last updated: 2026-06-24
+
+# -------------------------------------------------------------------
+# BASE DETECTION QUERY
+# -------------------------------------------------------------------
+
+index=windows_logs sourcetype=WinEventLog:Security EventCode=4688
+  (Image="*\\powershell.exe" OR Image="*\\pwsh.exe")
+  (
+    CommandLine="*-EncodedCommand*" OR
+    CommandLine="*-enc *" OR
+    CommandLine="*-ExecutionPolicy Bypass*" OR
+    CommandLine="*-ep bypass*" OR
+    CommandLine="*-WindowStyle Hidden*" OR
+    CommandLine="*-w hidden*" OR
+    CommandLine="*-NonInteractive*" OR
+    CommandLine="*-noni *" OR
+    CommandLine="*-NoProfile*" OR
+    CommandLine="*-nop *"
+  )
+  NOT (
+    ParentImage="*\\Exchange Server*" OR
+    ParentImage="*\\SolarWinds*"
+  )
+| table _time, ComputerName, User, Image, CommandLine, ParentImage, ParentCommandLine
+| sort -_time
+
+# -------------------------------------------------------------------
+# SYSMON VERSION (Event ID 1 — richer context, recommended)
+# -------------------------------------------------------------------
+
+index=windows_logs sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational EventCode=1
+  (Image="*\\powershell.exe" OR Image="*\\pwsh.exe")
+  (
+    CommandLine="*-EncodedCommand*" OR
+    CommandLine="*-enc *" OR
+    CommandLine="*-ExecutionPolicy Bypass*" OR
+    CommandLine="*-ep bypass*" OR
+    CommandLine="*-WindowStyle Hidden*" OR
+    CommandLine="*-w hidden*" OR
+    CommandLine="*-NonInteractive*" OR
+    CommandLine="*-noni *" OR
+    CommandLine="*-NoProfile*" OR
+    CommandLine="*-nop *"
+  )
+  NOT (
+    ParentImage="*\\Exchange Server*" OR
+    ParentImage="*\\SolarWinds*"
+  )
+| eval risk_score=case(
+    CommandLine LIKE "%-EncodedCommand%", 80,
+    CommandLine LIKE "%-WindowStyle Hidden%", 70,
+    CommandLine LIKE "%-ExecutionPolicy Bypass%", 60,
+    true(), 50
+  )
+| table _time, ComputerName, User, Image, CommandLine, ParentImage, ParentCommandLine, Hashes, risk_score
+| sort -risk_score, -_time
+
+# -------------------------------------------------------------------
+# SCRIPT BLOCK LOGGING VERSION (Event ID 4104 — catches obfuscated scripts)
+# -------------------------------------------------------------------
+
+index=windows_logs sourcetype=XmlWinEventLog:Microsoft-Windows-PowerShell/Operational EventCode=4104
+  (
+    ScriptBlockText="*Invoke-WebRequest*" OR
+    ScriptBlockText="*IEX*" OR
+    ScriptBlockText="*Invoke-Expression*" OR
+    ScriptBlockText="*DownloadString*" OR
+    ScriptBlockText="*Net.WebClient*" OR
+    ScriptBlockText="*-enc*" OR
+    ScriptBlockText="*FromBase64String*"
+  )
+| table _time, ComputerName, ScriptBlockText, Path
+| sort -_time
