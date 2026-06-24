@@ -1,0 +1,58 @@
+# Splunk SPL — T1053.005 Suspicious Scheduled Task Creation
+# Converted from Sigma rule using sigma-cli
+# Source: sigma-rule.yml
+# Last updated: 2026-06-24
+
+# -------------------------------------------------------------------
+# BASE DETECTION — schtasks.exe with suspicious payload or path
+# -------------------------------------------------------------------
+
+index=windows_logs sourcetype=WinEventLog:Security EventCode=4688
+  Image="*\\schtasks.exe"
+  CommandLine="*/create*"
+  (
+    CommandLine="*powershell*" OR
+    CommandLine="*cmd /c*" OR
+    CommandLine="*wscript*" OR
+    CommandLine="*mshta*" OR
+    CommandLine="*rundll32*" OR
+    CommandLine="*C:\\Users\\Public*" OR
+    CommandLine="*C:\\Temp*" OR
+    CommandLine="*C:\\ProgramData*" OR
+    (CommandLine="*/ru*" AND CommandLine="*SYSTEM*")
+  )
+  NOT ParentImage="*\\mmc.exe"
+  NOT ParentImage="*\\Program Files\\Microsoft*"
+| table _time, ComputerName, User, CommandLine, ParentImage
+| sort -_time
+
+# -------------------------------------------------------------------
+# TASK SCHEDULER OPERATIONAL LOG — Event ID 106 (Task Registered)
+# Detects task creation without needing 4688 command line logging
+# -------------------------------------------------------------------
+
+index=windows_logs sourcetype=XmlWinEventLog:Microsoft-Windows-TaskScheduler/Operational EventCode=106
+| rex field=_raw "Task Scheduler.*registered.*task\s+\"(?<task_name>[^\"]+)\""
+| eval suspicious=case(
+    task_name LIKE "%Update%" AND NOT task_name LIKE "%Adobe%" AND NOT task_name LIKE "%Chrome%", "Suspicious name mimicking update process",
+    task_name LIKE "%Health%" OR task_name LIKE "%Check%" OR task_name LIKE "%Driver%", "Suspicious generic task name",
+    true(), "Review required"
+  )
+| table _time, ComputerName, User, task_name, suspicious
+| sort -_time
+
+# -------------------------------------------------------------------
+# CORRELATED DETECTION — Match 106 (create) with 141 (delete) in short window
+# Rapid create→delete = execution and cleanup pattern
+# -------------------------------------------------------------------
+
+index=windows_logs sourcetype=XmlWinEventLog:Microsoft-Windows-TaskScheduler/Operational
+  (EventCode=106 OR EventCode=141)
+| rex field=_raw "task\s+\"(?<task_name>[^\"]+)\""
+| eval action=case(EventCode="106", "CREATED", EventCode="141", "DELETED")
+| stats values(action) as actions, min(_time) as first_seen, max(_time) as last_seen by task_name, ComputerName
+| eval duration_seconds=last_seen-first_seen
+| where mvcount(actions)=2 AND duration_seconds < 3600
+| eval alert="Task created and deleted within 1 hour — possible execute-and-cleanup"
+| table first_seen, last_seen, duration_seconds, task_name, ComputerName, alert
+| sort -first_seen

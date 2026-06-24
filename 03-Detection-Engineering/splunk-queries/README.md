@@ -5,7 +5,7 @@ All converted Splunk search queries from this project collected in one place.
 | Query File | Technique | MITRE ID | Status |
 |------------|-----------|----------|--------|
 | [T1059.001-powershell.txt](./T1059.001-powershell.txt) | PowerShell Abuse | T1059.001 | ✅ Complete |
-| T1053.005-scheduled-tasks.txt | Scheduled Task Creation | T1053.005 | ⏳ Planned |
+| [T1053.005-scheduled-tasks.txt](./T1053.005-scheduled-tasks.txt) | Scheduled Task Creation | T1053.005 | ✅ Complete |
 | T1003.001-lsass-dump.txt | LSASS Memory Dump | T1003.001 | ⏳ Planned |
 | T1021.002-smb-lateral.txt | SMB Lateral Movement | T1021.002 | ⏳ Planned |
 | T1486-ransomware.txt | Ransomware Simulation | T1486 | ⏳ Planned |

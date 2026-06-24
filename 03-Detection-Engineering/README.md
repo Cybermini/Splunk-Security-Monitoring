@@ -46,7 +46,7 @@ Full methodology: [methodology.md](./methodology.md)
 | # | Technique | MITRE ID | Tactic | Status |
 |---|-----------|----------|--------|--------|
 | 1 | [PowerShell Abuse](./techniques/T1059.001-PowerShell/) | T1059.001 | Execution | ✅ Complete |
-| 2 | [Scheduled Task Creation](./techniques/T1053.005-ScheduledTasks/) | T1053.005 | Persistence | ⏳ Planned |
+| 2 | [Scheduled Task Creation](./techniques/T1053.005-ScheduledTasks/) | T1053.005 | Persistence | ✅ Complete |
 | 3 | [LSASS Memory Dump](./techniques/T1003.001-LSASS-Dump/) | T1003.001 | Credential Access | ⏳ Planned |
 | 4 | [SMB Lateral Movement](./techniques/T1021.002-SMB-Lateral/) | T1021.002 | Lateral Movement | ⏳ Planned |
 | 5 | [Ransomware Simulation](./techniques/T1486-Ransomware-Sim/) | T1486 | Impact | ⏳ Planned |

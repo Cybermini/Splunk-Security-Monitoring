@@ -1,0 +1,59 @@
+title: Suspicious Scheduled Task Creation via schtasks
+id: b3c7f1e2-5d8a-4f9b-a2e3-6c4d8f0a1b2e
+status: test
+description: >
+  Detects suspicious scheduled task creation using schtasks.exe with indicators
+  commonly associated with attacker persistence — tasks pointing to writable
+  user directories, running as SYSTEM, using PowerShell with hidden windows,
+  or using deceptive task names mimicking legitimate Windows processes.
+references:
+  - https://attack.mitre.org/techniques/T1053/005/
+  - https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/schtasks
+author: Yamini Savalia
+date: 2026-06-24
+tags:
+  - attack.persistence
+  - attack.t1053.005
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_process:
+    Image|endswith: '\schtasks.exe'
+    CommandLine|contains: '/create'
+  selection_suspicious_payload:
+    CommandLine|contains:
+      - 'powershell'
+      - 'cmd /c'
+      - 'wscript'
+      - 'cscript'
+      - 'mshta'
+      - 'rundll32'
+      - 'regsvr32'
+  selection_suspicious_path:
+    CommandLine|contains:
+      - 'C:\Users\Public'
+      - 'C:\Temp'
+      - 'C:\ProgramData'
+      - '%APPDATA%'
+      - '%TEMP%'
+  selection_system_run:
+    CommandLine|contains|all:
+      - '/ru'
+      - 'SYSTEM'
+  filter_legitimate:
+    ParentImage|contains:
+      - 'C:\Windows\System32\mmc.exe'
+      - 'C:\Program Files\Microsoft'
+  condition: selection_process and (selection_suspicious_payload or selection_suspicious_path or selection_system_run) and not filter_legitimate
+falsepositives:
+  - Software installers creating legitimate scheduled tasks
+  - System administrators creating maintenance tasks via scripts
+  - Endpoint management tools (SCCM, Intune) deploying tasks
+  - Antivirus/EDR products scheduling their own maintenance tasks
+level: medium
+fields:
+  - CommandLine
+  - ParentImage
+  - ParentCommandLine
+  - User
