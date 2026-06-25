@@ -1,0 +1,57 @@
+# Splunk SPL — T1021.002 SMB Lateral Movement
+# Converted from Sigma rule using sigma-cli
+# Source: sigma-rule.yml
+# Last updated: 2026-06-25
+
+# -------------------------------------------------------------------
+# PRIMARY DETECTION — Network Logon (Type 3) to Admin Shares
+# -------------------------------------------------------------------
+
+index=windows_logs sourcetype=WinEventLog:Security EventCode=4624
+  LogonType=3
+  NOT IpAddress IN ("127.0.0.1", "::1", "-", "")
+| table _time, ComputerName, TargetUserName, IpAddress, IpPort, LogonType, AuthenticationPackageName, LmPackageName
+| sort -_time
+
+# -------------------------------------------------------------------
+# ADMIN SHARE ACCESS DETECTION — Event ID 5140
+# C$ or ADMIN$ access from any external IP
+# -------------------------------------------------------------------
+
+index=windows_logs sourcetype=WinEventLog:Security EventCode=5140
+  (ShareName="*\\C$" OR ShareName="*\\ADMIN$")
+  NOT IpAddress IN ("127.0.0.1", "::1", "-")
+| table _time, ComputerName, SubjectUserName, IpAddress, IpPort, ShareName, ShareLocalPath
+| sort -_time
+
+# -------------------------------------------------------------------
+# CORRELATED DETECTION — Match 4624 (logon) + 5140 (share access)
+# Same source IP within 5 minutes = confirmed lateral movement
+# -------------------------------------------------------------------
+
+index=windows_logs sourcetype=WinEventLog:Security
+  (EventCode=4624 OR EventCode=5140)
+| eval event_type=case(
+    EventCode="4624" AND LogonType="3", "NETWORK_LOGON",
+    EventCode="5140" AND (ShareName="*\\C$" OR ShareName="*\\ADMIN$"), "ADMIN_SHARE_ACCESS"
+  )
+| where isnotnull(event_type)
+| stats values(event_type) as events, values(ShareName) as shares, dc(EventCode) as unique_events
+  by IpAddress, ComputerName, TargetUserName, SubjectUserName
+| where unique_events>=2
+| eval alert="Lateral movement confirmed: Network logon + Admin share access from same IP"
+| table _time, ComputerName, IpAddress, TargetUserName, SubjectUserName, shares, alert
+
+# -------------------------------------------------------------------
+# NTLM PASS-THE-HASH INDICATOR
+# NTLM auth to DC from non-DC source is suspicious in Kerberos environments
+# -------------------------------------------------------------------
+
+index=windows_logs sourcetype=WinEventLog:Security EventCode=4624
+  LogonType=3
+  AuthenticationPackageName=NTLM
+  LmPackageName="NTLM V2"
+  NOT IpAddress IN ("127.0.0.1", "::1", "-")
+| eval risk="Potential Pass-the-Hash: NTLM Type 3 logon from external IP"
+| table _time, ComputerName, TargetUserName, IpAddress, AuthenticationPackageName, LmPackageName, risk
+| sort -_time

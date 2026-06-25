@@ -1,0 +1,50 @@
+title: SMB Lateral Movement via Admin Share Access
+id: c5f9e3b2-7d1a-4f8c-b4e2-3d6f9a2c1e4d
+status: test
+description: >
+  Detects lateral movement via SMB admin shares (C$, ADMIN$) using network logon
+  events (Type 3) combined with admin share access. Covers crackmapexec, impacket,
+  PsExec, and manual net use techniques. High-confidence when C$ or ADMIN$ are
+  accessed from a non-domain-controller source IP.
+references:
+  - https://attack.mitre.org/techniques/T1021/002/
+  - https://www.ultimatewindowssecurity.com/securitylog/encyclopedia/event.aspx?eventid=4624
+author: Yamini Savalia
+date: 2026-06-25
+tags:
+  - attack.lateral_movement
+  - attack.t1021.002
+logsource:
+  product: windows
+  service: security
+detection:
+  selection_network_logon:
+    EventID: 4624
+    LogonType: 3
+    AuthenticationPackageName:
+      - 'NTLM'
+      - 'Kerberos'
+  filter_legitimate_dc:
+    IpAddress:
+      - '127.0.0.1'
+      - '::1'
+      - '-'
+  selection_admin_share:
+    EventID: 5140
+    ShareName|contains:
+      - '\C$'
+      - '\ADMIN$'
+      - '\IPC$'
+  condition: (selection_network_logon and not filter_legitimate_dc) or selection_admin_share
+falsepositives:
+  - Legitimate remote administration via RDP or PSRemoting
+  - Backup solutions accessing shares remotely
+  - Domain controllers authenticating to each other
+  - SCCM/Intune agent deployments
+level: medium
+fields:
+  - TargetUserName
+  - IpAddress
+  - LogonType
+  - ShareName
+  - AuthenticationPackageName
