@@ -73,3 +73,15 @@ See [logs-observed.md](./logs-observed.md) for raw log evidence from the lab.
 ## Screenshots
 
 See [screenshots/](./) for lab evidence.
+
+---
+
+## My Observations
+
+The first thing I discovered is that Windows logs almost nothing by default. Before I even ran a single attack command, I had to enable process creation auditing via `auditpol`, enable command line logging via registry, and turn on Script Block Logging in Group Policy. Without those steps — which most default Windows installs skip — Event 4688 shows you a process was created but hides the command line entirely. Useless for detection.
+
+The `-EncodedCommand` flag surprised me with how transparent it actually is. I expected it to hide the payload from logs. It doesn't — 4104 decodes Base64 before logging, so the actual script content is always visible. The encoding only defeats signature detection on the command line itself, not 4104.
+
+Event 4103 (Module Logging) ended up being the lowest value of the three log sources. It generated a lot of background noise from system PowerShell activity but wasn't specific to the attack commands I ran. For this technique, 4104 is the one to focus on. I kept 4103 in the documentation for completeness but I wouldn't build a high-fidelity alert on it.
+
+The parent process field in Event 4688 is what makes triage fast. PowerShell spawned by `powershell.exe` is normal (nested shells happen). PowerShell spawned by `winword.exe` or `excel.exe` is an immediate critical — that's a phishing payload executing.

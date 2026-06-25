@@ -78,3 +78,15 @@ See [logs-observed.md](./logs-observed.md) for full lab evidence.
 ## Screenshots
 
 See [screenshots/](./screenshots/) for lab evidence.
+
+---
+
+## My Observations
+
+The `vssadmin delete shadows /all /quiet` command returned "no items found" because the lab machine had no shadow copies configured. I initially thought this meant the command failed and I'd missed a log. It didn't — Sysmon Event 1 captured the process creation and full command line regardless of whether the command succeeded. This is an important thing to understand about process creation logs: they record what was *attempted*, not whether it worked. From a detection standpoint, the attempt is the thing to catch.
+
+Event 11 (FileCreate) did not fire for the mass file encryption. Two reasons: first, the default Sysmon config doesn't include a `<FileCreate>` rule; second, I used `Rename-Item` to simulate encryption (renaming `.txt` to `.txt.encrypted`), and renaming is not a file creation event — it's a file rename event (Event ID 2 in Sysmon, or FileRenameOperation). I documented both the config gap and the technique gap in the tuning notes. To fully detect mass encryption, you'd need either FileCreate rules for `.encrypted`/`.locked` extensions or FileRenameOperation monitoring.
+
+The shadow copy deletion command with the `/quiet` flag is the most reliable single indicator in all of ransomware detection. I looked through several ransomware incident reports and virtually every family — Conti, LockBit, REvil — runs some variant of this command before or during encryption. The `/quiet` flag is particularly significant because legitimate backup tools never suppress output; they need to log what they deleted.
+
+Correlating three indicators — shadow delete + mass encryption extension + ransom note drop — gives you a very high confidence alert. Any one of these alone could be a false positive, but all three together in a short time window means you almost certainly have active ransomware. That's the correlated SPL query at the bottom of the query file.

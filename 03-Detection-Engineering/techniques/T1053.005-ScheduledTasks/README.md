@@ -79,3 +79,15 @@ See [logs-observed.md](./logs-observed.md) for full lab evidence.
 ## Screenshots
 
 See [screenshots/](./screenshots/) for lab evidence.
+
+---
+
+## My Observations
+
+Getting visibility into scheduled task creation took more setup than I expected. The Task Scheduler Operational log is disabled by default — I had to enable it through Event Viewer (right-click the log → Enable) before any events appeared. Event 4698 (task created in the Security log) also required enabling "Other Object Access Events" via `auditpol`. On a default Windows installation, you're blind to task creation events entirely.
+
+Event 4698 showed 0 events until I ran the auditpol command. Once enabled, it populated. But I found Event 106 from the Task Scheduler Operational log to be more immediately useful because it fired reliably and contained the task name directly — so I used that as my primary evidence source and documented 4698 as a secondary.
+
+The task names I used — `WindowsUpdate`, `SystemHealthCheck`, `DriverUpdate` — are deliberately chosen to blend in. They look legitimate to anyone glancing at Task Scheduler. The detection can't rely on name-based filtering; it has to look at the payload path and execution context. A task running from `C:\Users\Public\` or a temp directory and executing as SYSTEM is suspicious regardless of what it's named.
+
+The correlated detection (task created, then deleted in the same session) ended up being one of the more interesting detection ideas from this technique. Attackers often create a task, use it, then delete it to clean up. The fact that a task was created *and* deleted in the same short window is itself suspicious — legitimate software installers create tasks but don't delete them hours later.

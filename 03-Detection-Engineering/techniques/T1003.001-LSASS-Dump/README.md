@@ -72,3 +72,15 @@ See [logs-observed.md](./logs-observed.md) for full lab evidence.
 ## Screenshots
 
 See [screenshots/](./screenshots/) for lab evidence.
+
+---
+
+## My Observations
+
+The lab environment I used had no internet access, which meant I couldn't download Mimikatz. I switched to the `comsvcs.dll` MiniDump method instead — and honestly, this ended up being more realistic. Modern ransomware operators don't use raw Mimikatz because it gets flagged. They use LOLBins like this one. `comsvcs.dll` is signed by Microsoft, ships with every Windows install, and produces the same output. The detection still catches it — if anything, simulating the more evasive version is better for testing.
+
+Sysmon Event 10 (Process Access) did not fire at all. I searched extensively and got zero results. The reason is that the default Sysmon configuration doesn't include a `<ProcessAccess>` rule targeting `lsass.exe`. This is a real detection gap I would not have found without actually testing — documentation says Event 10 is how you detect LSASS dumping, but if the Sysmon config doesn't include that rule, you never see it. I documented the XML config addition and moved on to Event 1 as the primary evidence source.
+
+The 145 MB dump file at `C:\Users\Public\lsass.dmp` is itself interesting as an artifact. A `.dmp` file in a public, world-writable directory is inherently suspicious — that's not where crash dumps normally go. I added the file path detection to the SPL queries for this reason.
+
+The LSASS PID (632 in my lab) will change every boot, so detections can't hardcode PIDs. The command line pattern — `rundll32.exe ... comsvcs.dll MiniDump` — is consistent regardless of the PID used and is the right detection anchor.

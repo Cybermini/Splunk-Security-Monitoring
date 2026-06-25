@@ -83,3 +83,15 @@ See [logs-observed.md](./logs-observed.md) for full lab evidence.
 ## Screenshots
 
 See [screenshots/](./screenshots/) for lab evidence.
+
+---
+
+## My Observations
+
+My first attempt to enumerate SMB shares used `smbclient -L //<target-IP> -N` and it immediately failed with an SMB1 connection error. SMB1 is disabled on modern Windows by default. I switched to crackmapexec with `--option='client min protocol=SMB2'` for enumeration and then just used crackmapexec directly for the full attack chain — which ended up being cleaner anyway since it's what actual attackers use.
+
+The `[+] Pwn3d!` output from crackmapexec confirmed administrative SMB access, which is exactly the kind of confirmation an attacker looks for before proceeding to remote code execution or file staging.
+
+One thing I noticed in the Event 4624 logs: the THM environment labels the source differently from what a standard corporate Active Directory would show, so I had to dig around to find the right source address field. The key values I was looking for — `LogonType:3` (network logon) and the attacker IP in `IpAddress` — were there, just in slightly different fields than I expected. Real environments will always have quirks like this, which is why hunting by pattern (`LogonType=3 + external IP + C$ access`) is more reliable than hunting by specific field names.
+
+The Event 5140 (share access) correlated with 4624 from the same source IP in a short time window is the detection I'd actually deploy — either one alone generates noise, but together they're a strong signal. An external IP authenticating and then immediately accessing `C$` or `ADMIN$` is almost never legitimate.
