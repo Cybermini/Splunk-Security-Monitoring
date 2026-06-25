@@ -1,0 +1,50 @@
+title: LSASS Memory Dump via comsvcs.dll MiniDump (LOLBin)
+id: d4e8f2a1-6b9c-4e7d-b3f1-2a5c7e9d0f3b
+status: test
+description: >
+  Detects LSASS memory dump using the comsvcs.dll MiniDump method via rundll32.exe.
+  This is a Living Off the Land technique used by threat actors to extract credentials
+  from LSASS without deploying external tools like Mimikatz. Both comsvcs.dll and
+  rundll32.exe are signed Microsoft binaries, making this technique difficult to
+  detect with signature-based controls alone.
+references:
+  - https://attack.mitre.org/techniques/T1003/001/
+  - https://lolbas-project.github.io/lolbas/Libraries/Comsvcs/
+author: Yamini Savalia
+date: 2026-06-25
+tags:
+  - attack.credential_access
+  - attack.t1003.001
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_lolbin_dump:
+    Image|endswith: '\rundll32.exe'
+    CommandLine|contains|all:
+      - 'comsvcs'
+      - 'MiniDump'
+  selection_lsass_direct:
+    Image|endswith: '\rundll32.exe'
+    CommandLine|contains|all:
+      - 'comsvcs'
+      - 'lsass'
+  selection_dump_path:
+    CommandLine|contains:
+      - '.dmp'
+      - 'lsass'
+  filter_legitimate:
+    CommandLine|contains:
+      - 'C:\Windows\System32\werfault.exe'
+  condition: (selection_lolbin_dump or selection_lsass_direct) and not filter_legitimate
+falsepositives:
+  - Legitimate memory dump tools used by support teams
+  - Windows Error Reporting creating crash dumps (uses different path)
+  - Security research in isolated lab environments
+level: high
+fields:
+  - CommandLine
+  - ParentImage
+  - ParentCommandLine
+  - User
+  - Image

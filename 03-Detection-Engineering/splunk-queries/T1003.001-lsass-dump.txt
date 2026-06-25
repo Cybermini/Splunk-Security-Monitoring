@@ -1,0 +1,72 @@
+# Splunk SPL — T1003.001 LSASS Memory Dump via comsvcs.dll
+# Converted from Sigma rule using sigma-cli
+# Source: sigma-rule.yml
+# Last updated: 2026-06-25
+
+# -------------------------------------------------------------------
+# PRIMARY DETECTION — rundll32 + comsvcs.dll + MiniDump
+# Catches the LOLBin credential dump method
+# -------------------------------------------------------------------
+
+index=windows_logs (sourcetype=WinEventLog:Security EventCode=4688 OR sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational EventCode=1)
+  Image="*\\rundll32.exe"
+  (
+    (CommandLine="*comsvcs*" AND CommandLine="*MiniDump*") OR
+    (CommandLine="*comsvcs*" AND CommandLine="*lsass*")
+  )
+  NOT CommandLine="*werfault*"
+| eval log_source=case(EventCode="4688","Windows Security 4688",EventCode="1","Sysmon Event 1")
+| table _time, ComputerName, User, Image, CommandLine, ParentImage, ParentCommandLine, log_source
+| sort -_time
+
+# -------------------------------------------------------------------
+# SYSMON EVENT 10 — Process Access to lsass.exe
+# Requires ProcessAccess rule in Sysmon config
+# Most direct detection of credential dumping regardless of tool used
+# -------------------------------------------------------------------
+
+index=windows_logs sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational EventCode=10
+  TargetImage="*\\lsass.exe"
+  (GrantedAccess="0x1fffff" OR GrantedAccess="0x1010" OR GrantedAccess="0x1438")
+  NOT SourceImage IN (
+    "C:\\Windows\\System32\\svchost.exe",
+    "C:\\Windows\\System32\\wininit.exe",
+    "C:\\Windows\\System32\\csrss.exe",
+    "C:\\Windows\\System32\\services.exe",
+    "C:\\Program Files\\*"
+  )
+| table _time, ComputerName, User, SourceImage, TargetImage, GrantedAccess, CallTrace
+| sort -_time
+
+# -------------------------------------------------------------------
+# DUMP FILE CREATION — Sysmon Event 11
+# Detects .dmp files created in suspicious paths
+# -------------------------------------------------------------------
+
+index=windows_logs sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational EventCode=11
+  (
+    TargetFilename="*lsass*" OR
+    TargetFilename="*\\Public\\*.dmp" OR
+    TargetFilename="*\\Temp\\*.dmp" OR
+    TargetFilename="*\\ProgramData\\*.dmp"
+  )
+  NOT TargetFilename="*\\Windows\\Temp\\*"
+| table _time, ComputerName, User, Image, TargetFilename
+| sort -_time
+
+# -------------------------------------------------------------------
+# CORRELATION — Chain Event 1 (dump command) + Event 11 (file created)
+# High confidence: process running comsvcs AND creating a .dmp file
+# -------------------------------------------------------------------
+
+index=windows_logs sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational
+  (EventCode=1 OR EventCode=11)
+| eval indicator=case(
+    EventCode="1" AND like(CommandLine, "%comsvcs%") AND like(CommandLine, "%MiniDump%"), "DUMP_COMMAND",
+    EventCode="11" AND (like(TargetFilename, "%lsass%") OR like(TargetFilename, "%.dmp%")), "DUMP_FILE"
+  )
+| where isnotnull(indicator)
+| stats values(indicator) as indicators, values(CommandLine) as cmd, values(TargetFilename) as file by ComputerName, _time span=5m
+| where mvcount(indicators)>=2
+| eval alert="LSASS dump command and dump file creation detected within 5 minutes"
+| table _time, ComputerName, cmd, file, alert
