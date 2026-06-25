@@ -8,7 +8,7 @@ All Sigma YAML detection rules from this project collected in one place for easy
 | [scheduled-task-creation.yml](./scheduled-task-creation.yml) | Scheduled Task Creation | T1053.005 | ✅ Complete |
 | [lsass-memory-dump.yml](./lsass-memory-dump.yml) | LSASS Memory Dump | T1003.001 | ✅ Complete |
 | [smb-lateral-movement.yml](./smb-lateral-movement.yml) | SMB Lateral Movement | T1021.002 | ✅ Complete |
-| ransomware-file-encryption.yml | Ransomware Simulation | T1486 | ⏳ Planned |
+| [ransomware-impact.yml](./ransomware-impact.yml) | Ransomware Simulation | T1486 | ✅ Complete |
 
 ## Usage
 

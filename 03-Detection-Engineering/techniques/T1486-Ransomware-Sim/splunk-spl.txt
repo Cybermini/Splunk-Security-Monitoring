@@ -1,0 +1,82 @@
+# Splunk SPL — T1486 Ransomware Impact Detection
+# Converted from Sigma rule using sigma-cli
+# Source: sigma-rule.yml
+# Last updated: 2026-06-25
+
+# -------------------------------------------------------------------
+# PRIMARY DETECTION — Shadow Copy Deletion (vssadmin + wmic)
+# Highest-fidelity single ransomware indicator
+# -------------------------------------------------------------------
+
+index=windows_logs (sourcetype=WinEventLog:Security EventCode=4688 OR sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational EventCode=1)
+  (
+    (Image="*\\vssadmin.exe" AND CommandLine="*delete*" AND CommandLine="*shadows*") OR
+    (Image="*\\wmic.exe" AND CommandLine="*shadowcopy*" AND CommandLine="*delete*") OR
+    (Image="*\\bcdedit.exe" AND CommandLine="*recoveryenabled*" AND CommandLine="*No*")
+  )
+| eval threat="Shadow copy deletion — ransomware indicator"
+| table _time, ComputerName, User, Image, CommandLine, ParentImage, threat
+| sort -_time
+
+# -------------------------------------------------------------------
+# MASS FILE ENCRYPTION DETECTION — Sysmon Event 11
+# Requires FileCreate rule in Sysmon config
+# Detects mass .encrypted/.locked extension file creation
+# -------------------------------------------------------------------
+
+index=windows_logs sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational EventCode=11
+  (
+    TargetFilename="*.encrypted" OR
+    TargetFilename="*.locked" OR
+    TargetFilename="*.ransom" OR
+    TargetFilename="*.crypt" OR
+    TargetFilename="*DECRYPT*" OR
+    TargetFilename="*README*" OR
+    TargetFilename="*HOW_TO_RESTORE*"
+  )
+| stats count as file_count, values(TargetFilename) as files by ComputerName, Image, _time span=60s
+| where file_count > 10
+| eval alert="Mass file encryption detected: " + tostring(file_count) + " files in 60 seconds"
+| table _time, ComputerName, Image, file_count, alert
+| sort -file_count
+
+# -------------------------------------------------------------------
+# RANSOM NOTE DETECTION — Sysmon Event 11
+# Common ransom note filenames dropped by major ransomware families
+# -------------------------------------------------------------------
+
+index=windows_logs sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational EventCode=11
+  (
+    TargetFilename="*\\README_DECRYPT*" OR
+    TargetFilename="*\\HOW_TO_RESTORE*" OR
+    TargetFilename="*\\DECRYPT_INSTRUCTIONS*" OR
+    TargetFilename="*\\YOUR_FILES_ARE_ENCRYPTED*" OR
+    TargetFilename="*\\RECOVER_FILES*" OR
+    TargetFilename="*\\readme.txt" OR
+    TargetFilename="*\\!readme!.txt"
+  )
+| eval alert="Ransom note file created — immediate response required"
+| table _time, ComputerName, User, Image, TargetFilename, alert
+| sort -_time
+
+# -------------------------------------------------------------------
+# CORRELATED RANSOMWARE CHAIN
+# Shadow delete + mass encryption + ransom note = confirmed ransomware
+# -------------------------------------------------------------------
+
+index=windows_logs
+  (sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational OR sourcetype=WinEventLog:Security)
+  (
+    (EventCode=1 AND ((Image="*\\vssadmin.exe" AND CommandLine="*delete shadows*") OR (Image="*\\wmic.exe" AND CommandLine="*shadowcopy delete*"))) OR
+    (EventCode=11 AND (TargetFilename="*.encrypted" OR TargetFilename="*.locked" OR TargetFilename="*DECRYPT*"))
+  )
+| eval indicator=case(
+    EventCode="1", "SHADOW_DELETE",
+    EventCode="11" AND like(TargetFilename,"%.encrypted%"), "FILE_ENCRYPTED",
+    EventCode="11" AND like(TargetFilename,"%DECRYPT%"), "RANSOM_NOTE"
+  )
+| stats values(indicator) as indicators, dc(indicator) as indicator_count by ComputerName
+| where indicator_count >= 2
+| eval confidence=case(indicator_count=3, "CRITICAL - All 3 ransomware indicators present", indicator_count=2, "HIGH - Multiple ransomware indicators")
+| table ComputerName, indicators, confidence
+| sort -indicator_count

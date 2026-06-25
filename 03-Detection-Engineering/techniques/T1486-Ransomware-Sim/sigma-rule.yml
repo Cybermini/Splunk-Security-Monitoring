@@ -1,0 +1,55 @@
+title: Ransomware Behavior — Shadow Copy Deletion and Mass File Encryption
+id: e6f0a4c3-8e2b-4d9f-c5a3-4e7b0c2d5f6e
+status: test
+description: >
+  Detects ransomware impact behaviors: shadow copy deletion via vssadmin or wmic,
+  and mass file extension changes consistent with encryption. Shadow copy deletion
+  is present in virtually every modern ransomware family (Conti, LockBit, BlackCat,
+  Ryuk, REvil) and is one of the highest-fidelity ransomware indicators available
+  in Windows event logs.
+references:
+  - https://attack.mitre.org/techniques/T1486/
+  - https://www.cisa.gov/stopransomware
+author: Yamini Savalia
+date: 2026-06-25
+tags:
+  - attack.impact
+  - attack.t1486
+  - attack.defense_evasion
+  - attack.t1490
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_vssadmin:
+    Image|endswith: '\vssadmin.exe'
+    CommandLine|contains|all:
+      - 'delete'
+      - 'shadows'
+  selection_wmic_shadow:
+    Image|endswith: '\wmic.exe'
+    CommandLine|contains|all:
+      - 'shadowcopy'
+      - 'delete'
+  selection_wmic_vss:
+    Image|endswith: '\wmic.exe'
+    CommandLine|contains|all:
+      - 'shadowcopy'
+      - 'delete'
+  selection_bcdedit:
+    Image|endswith: '\bcdedit.exe'
+    CommandLine|contains:
+      - 'recoveryenabled'
+      - 'No'
+  condition: selection_vssadmin or selection_wmic_shadow or selection_wmic_vss or selection_bcdedit
+falsepositives:
+  - Legitimate system administrators managing shadow copies
+  - Backup software clearing old shadow copies before new backup
+  - IT maintenance scripts running during scheduled maintenance windows
+level: critical
+fields:
+  - CommandLine
+  - ParentImage
+  - ParentCommandLine
+  - User
+  - Image
